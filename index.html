@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taxi App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+        }
+
+        nav a {
+            color: #fff;
+            margin: 0 15px;
+            text-decoration: none;
+        }
+
+        main {
+            padding: 20px;
+            text-align: center;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            width: 300px;
+            margin: 0 auto;
+        }
+
+        select, button {
+            margin-bottom: 10px;
+            padding: 10px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Connect Button */
+        .connect-button {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #007BFF; 
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .connect-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Connected Button Style */
+        .connected-button {
+            position: absolute;
+            top: 50px;
+            right: 200px;
+            padding: 10px 20px;
+            background-color: #007BFF; 
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .connected-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Connected Dropdown Style */
+        .connected-dropdown {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            padding: 10px;
+            background-color: #282c34;
+            color: white;
+            border: 1px solid #61dafb;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 200px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .connected-dropdown select {
+            background-color: #282c34;
+            color: #61dafb;
+            border: none;
+            width: 100%;
+            padding: 5px;
+            font-size: 16px;
+        }
+
+        .connected-dropdown option {
+            background-color: #282c34;
+            color: #61dafb;
+            padding: 10px;
+        }
+
+        .connected-dropdown select option:hover {
+            background-color: #61dafb;
+            color: #282c34;
+        }
+
+        /* Connection Status Style */
+        #connectionStatus {
+            font-weight: bold;
+            font-size: 16px;
+            color: #000;
+            margin-left: 10px;
+        }
+
+        /* Center the alert */
+        .center-alert {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #333;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .center-alert button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Connect Button -->
+    <button id="connectButton" class="connect-button" onclick="connectWallet()">Connect</button>
+
+    <!-- Connected Button for total payments -->
+    <button id="connectedButton" class="connected-button hidden"></button>
+
+    <!-- Connected Dropdown -->
+    <div id="connectedDropdown" class="connected-dropdown hidden">
+        <select onchange="handleDropdownAction(event)">
+            <option value="">Select an action</option>
+            <option value="copy">Copy Address</option>
+            <option value="disconnect">Disconnect</option>
+        </select>
+    </div>
+
+    <!-- Center Alert -->
+    <div id="alertBox" class="center-alert">
+        <p>Address copied to clipboard!</p>
+        <button onclick="closeAlert()">Close</button>
+    </div>
+
+    <header>
+        <h1>Taxi App</h1>
+        <nav>
+            <a href="#" onclick="showSection('home')">Home</a>
+            <a href="#" onclick="showSection('booking')">Book a Taxi</a>
+            <a href="#" onclick="showSection('payment')">Payment</a>
+        </nav>
+    </header>
+
+    <main>
+        <div id="home" class="section">
+            <h2>Welcome to Taxi App</h2>
+            <p>Book a taxi and make payments easily with our app.</p>
+            <button onclick="showSection('booking')">Request</button>
+            <div class="wallet-address" id="wallet-address"></div>
+        </div>
+
+        <div id="booking" class="section hidden">
+            <h2>Book a Taxi</h2>
+            <form id="booking-form">
+                <label for="from">From:</label>
+                <select id="from" name="from" required>
+                    <option value="">Select starting point</option>
+                    <option value="Gugulethu">Gugulethu</option>
+                    <option value="Nyanga">Nyanga</option>
+                    <option value="Delft">Delft</option>
+                    <option value="Phillip">Phillip</option>
+                    <option value="Montague Gardens">Montague Gardens</option>
+                    <option value="Salt River">Salt River</option>
+                </select>
+
+                <label for="destination">Destination:</label>
+                <select id="destination" name="destination" required>
+                    <option value="">Select destination</option>
+                    <option value="Khayelitsha">Khayelitsha</option>
+                    <option value="Delft">Delft</option>
+                    <option value="Nyanga">Nyanga</option>
+                    <option value="Kenilworth">Kenilworth</option>
+                    <option value="Canal Walk">Canal Walk</option>
+                    <option value="Woodstock">Woodstock</option>
+                </select>
+
+                <button type="submit">Proceed to Payment</button>
+            </form>
+        </div>
+
+        <div id="payment" class="section hidden">
+            <h2>Payment</h2>
+            <p><strong>Estimated Fare:</strong> $<span id="fare-amount">0</span></p>
+            <button id="pay-now">Pay Now</button>
+        </div>
+    </main>
+
+    <script>
+        let isConnected = false;
+        let totalPayments = 0;
+        let userAddress = '';
+
+        // Function to connect wallet
+        function connectWallet() {
+            userAddress = '0x123456789ABCDEF';
+
+            // Hide connect button and show connected button and dropdown
+            document.getElementById('connectButton').style.display = 'none';
+
+            // Show connected button with total payments
+            const connectedButton = document.getElementById('connectedButton');
+            connectedButton.textContent = `Total Payments: $${totalPayments.toFixed(2)}`;
+            connectedButton.classList.remove('hidden');
+
+            // Show connected dropdown with options
+            const dropdown = document.getElementById('connectedDropdown');
+            dropdown.querySelector('select').innerHTML = `
+                <option>Address: ${userAddress}</option>
+                <option value="copy">Copy Address</option>
+                <option value="disconnect">Disconnect</option>
+            `;
+            dropdown.classList.remove('hidden');
+
+            isConnected = true;
+        }
+
+        // Function to handle dropdown actions
+        function handleDropdownAction(event) {
+            const action = event.target.value;
+            if (action === 'copy') {
+                // Copy address to clipboard and show alert
+                navigator.clipboard.writeText(userAddress).then(() => {
+                    showAlert();
+                }).catch(err => {
+                    alert('Failed to copy address: ' + err);
+                });
+            } else if (action === 'disconnect') {
+                disconnectWallet();
+            }
+            event.target.value = '';
+        }
+
+        // Function to show alert for address copy
+        function showAlert() {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.style.display = 'block';
+        }
+
+        // Close alert function
+        function closeAlert() {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.style.display = 'none';
+        }
+
+        // Function to disconnect wallet
+        function disconnectWallet() {
+            userAddress = '';
+            totalPayments = 0;
+
+            document.getElementById('connectButton').style.display = 'block';
+            document.getElementById('connectedButton').classList.add('hidden');
+            document.getElementById('connectedDropdown').classList.add('hidden');
+            isConnected = false;
+        }
+
+        // Show the correct section of the app
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
+
+        // Fare estimation
+        function estimateFare(from, destination) {
+            const baseFare = 10;
+            const distanceFactor = Math.abs(from.charCodeAt(0) - destination.charCodeAt(0)) * 3;
+            return baseFare + distanceFactor;
+        }
+
+        let fareAmount = 0;
+
+        // Event listener for booking form submission
+        document.getElementById('booking-form').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const from = document.getElementById('from').value;
+            const destination = document.getElementById('destination').value;
+
+            if (from === destination) {
+                alert('From and Destination cannot be the same.');
+                return;
+            }
+
+            fareAmount = estimateFare(from, destination);
+            document.getElementById('fare-amount').textContent = fareAmount.toFixed(2);
+
+            alert(`Booking Confirmed! From: ${from}, To: ${destination}, Fare: $${fareAmount.toFixed(2)}`);
+            showSection('payment');
+        });
+
+        // Event listener for payment button click
+        document.getElementById('pay-now').addEventListener('click', () => {
+            if (!isConnected) {
+                alert('Please connect your wallet before proceeding.');
+                return;
+            }
+
+            totalPayments += fareAmount;
+            alert(`Payment of $${fareAmount.toFixed(2)} was successful!`);
+
+            const connectedButton = document.getElementById('connectedButton');
+            connectedButton.textContent = `Total Payments: $${totalPayments.toFixed(2)}`;
+
+            showSection('home');
+        });
+
+        showSection('home');
+    </script>
+</body>
+</html>
