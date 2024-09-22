@@ -1,87 +1,89 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract TaxiCashApp {
-    // Define the owner of the contract (could be the platform)
-    address public owner;
-    
-    // Define a structure for a Ride
+contract RideBooking {
+    address public owner; // Contract owner
+    uint256 public rideFeePercentage = 2; // Platform fee (2% of the fare)
+
     struct Ride {
-        address rider;
-        address driver;
-        uint fare;
+        address payable rider;
+        address payable driver;
+        uint256 fare;
         bool isCompleted;
+        bool isPaid;
     }
 
-    // Mapping from ride IDs to Ride details
-    mapping(uint => Ride) public rides;
-    uint public rideCounter = 0;
+    mapping(uint256 => Ride) public rides;
+    uint256 public rideCount;
 
-    // Events
-    event RideRequested(address indexed rider, address indexed driver, uint rideId, uint fare);
-    event RideCompleted(uint rideId, uint fare);
-    event PaymentTransferred(address indexed driver, uint amount);
+    event RideBooked(uint256 rideId, address rider, address driver, uint256 fare);
+    event RideCompleted(uint256 rideId);
+    event PaymentReleased(uint256 rideId, address driver, uint256 amount);
 
-    // Modifier for owner-only functions
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call this.");
+    constructor() {
+        owner = msg.sender; // Set the owner of the contract
+    }
+
+    modifier onlyDriver(uint256 _rideId) {
+        require(msg.sender == rides[_rideId].driver, "Not authorized driver");
         _;
     }
 
-    // Constructor sets the owner
-    constructor() {
-        owner = msg.sender;
+    modifier onlyRider(uint256 _rideId) {
+        require(msg.sender == rides[_rideId].rider, "Not authorized rider");
+        _;
     }
 
-    // Function for riders to request a ride (rider deposits funds for the fare)
-    function requestRide(address _driver) public payable returns (uint) {
-        require(msg.value > 0, "Fare must be greater than 0.");
+    // Function to book a ride
+    function bookRide(address payable _driver) external payable {
+        require(msg.value > 0, "Fare must be greater than 0");
+        require(_driver != address(0), "Invalid driver address");
 
-        rideCounter++;
-        rides[rideCounter] = Ride({
-            rider: msg.sender,
+        rideCount++;
+        rides[rideCount] = Ride({
+            rider: payable(msg.sender),
             driver: _driver,
             fare: msg.value,
-            isCompleted: false
+            isCompleted: false,
+            isPaid: false
         });
 
-        emit RideRequested(msg.sender, _driver, rideCounter, msg.value);
-        return rideCounter;
+        emit RideBooked(rideCount, msg.sender, _driver, msg.value);
     }
 
-    // Function for rider to mark ride as completed and transfer payment to the driver
-    function completeRide(uint _rideId) public {
+    // Function to complete a ride (called by the driver)
+    function completeRide(uint256 _rideId) external onlyDriver(_rideId) {
         Ride storage ride = rides[_rideId];
+        require(!ride.isCompleted, "Ride already completed");
 
-        // Check that the caller is the rider
-        require(ride.rider == msg.sender, "Only the rider can complete the ride.");
-        // Ensure that the ride is not already completed
-        require(!ride.isCompleted, "Ride is already completed.");
-        
-        // Mark the ride as completed
         ride.isCompleted = true;
-
-        // Transfer the fare to the driver
-        (bool success, ) = payable(ride.driver).call{value: ride.fare}("");
-        require(success, "Transfer to driver failed.");
-
-        emit RideCompleted(_rideId, ride.fare);
-        emit PaymentTransferred(ride.driver, ride.fare);
+        emit RideCompleted(_rideId);
     }
 
-    // Function to withdraw contract balance (owner-only)
-    function withdraw(uint _amount) public onlyOwner {
-        require(_amount <= address(this).balance, "Insufficient balance in contract.");
-        
-        (bool success, ) = payable(owner).call{value: _amount}("");
-        require(success, "Withdrawal failed.");
+    // Function to release payment after ride completion (called by rider)
+    function releasePayment(uint256 _rideId) external onlyRider(_rideId) {
+        Ride storage ride = rides[_rideId];
+        require(ride.isCompleted, "Ride not completed");
+        require(!ride.isPaid, "Ride already paid");
+
+        uint256 platformFee = (ride.fare * rideFeePercentage) / 100;
+        uint256 driverAmount = ride.fare - platformFee;
+
+        ride.driver.transfer(driverAmount); // Transfer amount to the driver
+        payable(owner).transfer(platformFee); // Transfer fee to contract owner
+        ride.isPaid = true;
+
+        emit PaymentReleased(_rideId, ride.driver, driverAmount);
     }
 
-    // Fallback function to accept Ether sent directly to the contract
-    receive() external payable {}
+    // Function to adjust the platform fee percentage (only the contract owner can call)
+    function setRideFeePercentage(uint256 _newFee) external {
+        require(msg.sender == owner, "Only owner can change fee percentage");
+        rideFeePercentage = _newFee;
+    }
 
-    // Function to check the contract balance
-    function getBalance() public view returns (uint) {
-        return address(this).balance;
+    // Function to retrieve the current ride details
+    function getRideDetails(uint256 _rideId) external view returns (Ride memory) {
+        return rides[_rideId];
     }
 }
