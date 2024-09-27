@@ -156,6 +156,7 @@
             margin-top: 10px;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.6.0/web3.min.js"></script>
 </head>
 <body>
     <!-- Connect Button -->
@@ -233,125 +234,139 @@
     </main>
 
     <script>
-        let isConnected = false;
-        let totalPayments = 0;
-        let userAddress = '';
+        // Define the contract ABI and address here
+        const contractABI = [
+            {
+                "inputs": [],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "from",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "PaymentReceived",
+                "type": "event"
+            },
+            {
+                "inputs": [],
+                "name": "getBalance",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "payForTaxi",
+                "outputs": [],
+                "stateMutability": "payable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "totalPayments",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+        const contractAddress = '0x3199ac028922cc955B80928fc5a4E5D5Fd6c6f0E'; // Replace with your contract address
 
-        // Function to connect wallet
-        function connectWallet() {
-            userAddress = '0x123456789ABCDEF';
+        let web3;
+        let contract;
+        let userAccount;
 
-            // Hide connect button and show connected button and dropdown
-            document.getElementById('connectButton').style.display = 'none';
-
-            // Show connected button with total payments
-            const connectedButton = document.getElementById('connectedButton');
-            connectedButton.textContent = `Total Payments: $${totalPayments.toFixed(2)}`;
-            connectedButton.classList.remove('hidden');
-
-            // Show connected dropdown with options
-            const dropdown = document.getElementById('connectedDropdown');
-            dropdown.querySelector('select').innerHTML = `
-                <option>Address: ${userAddress}</option>
-                <option value="copy">Copy Address</option>
-                <option value="disconnect">Disconnect</option>
-            `;
-            dropdown.classList.remove('hidden');
-
-            isConnected = true;
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                web3 = new Web3(window.ethereum);
+                userAccount = (await web3.eth.getAccounts())[0];
+                contract = new web3.eth.Contract(contractABI, contractAddress);
+                document.getElementById('wallet-address').innerText = `Wallet Address: ${userAccount}`;
+                document.getElementById('connectButton').classList.add('hidden');
+                document.getElementById('connectedButton').innerText = `Connected: ${userAccount}`;
+                document.getElementById('connectedButton').classList.remove('hidden');
+                document.getElementById('connectedDropdown').classList.remove('hidden');
+            } else {
+                alert('Please install MetaMask!');
+            }
         }
 
-        // Function to handle dropdown actions
         function handleDropdownAction(event) {
             const action = event.target.value;
             if (action === 'copy') {
-                // Copy address to clipboard and show alert
-                navigator.clipboard.writeText(userAddress).then(() => {
-                    showAlert();
-                }).catch(err => {
-                    alert('Failed to copy address: ' + err);
+                navigator.clipboard.writeText(userAccount).then(() => {
+                    showAlert('Address copied to clipboard!');
                 });
             } else if (action === 'disconnect') {
-                disconnectWallet();
+                userAccount = null;
+                contract = null;
+                document.getElementById('wallet-address').innerText = '';
+                document.getElementById('connectButton').classList.remove('hidden');
+                document.getElementById('connectedButton').classList.add('hidden');
+                document.getElementById('connectedDropdown').classList.add('hidden');
             }
-            event.target.value = '';
         }
 
-        // Function to show alert for address copy
-        function showAlert() {
+        function showAlert(message) {
             const alertBox = document.getElementById('alertBox');
             alertBox.style.display = 'block';
+            alertBox.querySelector('p').innerText = message;
         }
 
-        // Close alert function
         function closeAlert() {
             const alertBox = document.getElementById('alertBox');
             alertBox.style.display = 'none';
         }
 
-        // Function to disconnect wallet
-        function disconnectWallet() {
-            userAddress = '';
-            totalPayments = 0;
-
-            document.getElementById('connectButton').style.display = 'block';
-            document.getElementById('connectedButton').classList.add('hidden');
-            document.getElementById('connectedDropdown').classList.add('hidden');
-            isConnected = false;
-        }
-
-        // Show the correct section of the app
-        function showSection(sectionId) {
-            document.querySelectorAll('.section').forEach(section => {
-                section.classList.add('hidden');
-            });
-            document.getElementById(sectionId).classList.remove('hidden');
-        }
-
-        // Fare estimation
-        function estimateFare(from, destination) {
-            const baseFare = 10;
-            const distanceFactor = Math.abs(from.charCodeAt(0) - destination.charCodeAt(0)) * 3;
-            return baseFare + distanceFactor;
-        }
-
-        let fareAmount = 0;
-
-        // Event listener for booking form submission
-        document.getElementById('booking-form').addEventListener('submit', (event) => {
+        document.getElementById('booking-form').addEventListener('submit', function (event) {
             event.preventDefault();
-            const from = document.getElementById('from').value;
-            const destination = document.getElementById('destination').value;
-
-            if (from === destination) {
-                alert('From and Destination cannot be the same.');
-                return;
+            const fare = (Math.random() * 0.9 + 0.1).toFixed(2); // Generates a random fare between 0.1 and 1.0
+        document.getElementById('fare-amount').innerText = fare;
+        showSection('payment');
+    });
+        document.getElementById('pay-now').addEventListener('click', async function () {
+            const fare = document.getElementById('fare-amount').innerText;
+            try {
+                await contract.methods.payForTaxi().send({ from: userAccount, value: web3.utils.toWei(fare, 'ether') });
+                alert('Payment successful!');
+            } catch (error) {
+                console.error(error);
+                alert('Payment failed!');
             }
-
-            fareAmount = estimateFare(from, destination);
-            document.getElementById('fare-amount').textContent = fareAmount.toFixed(2);
-
-            alert(`Booking Confirmed! From: ${from}, To: ${destination}, Fare: $${fareAmount.toFixed(2)}`);
-            showSection('payment');
         });
 
-        // Event listener for payment button click
-        document.getElementById('pay-now').addEventListener('click', () => {
-            if (!isConnected) {
-                alert('Please connect your wallet before proceeding.');
-                return;
-            }
-
-            totalPayments += fareAmount;
-            alert(`Payment of $${fareAmount.toFixed(2)} was successful!`);
-
-            const connectedButton = document.getElementById('connectedButton');
-            connectedButton.textContent = `Total Payments: $${totalPayments.toFixed(2)}`;
-
-            showSection('home');
-        });
-
-        showSection('home');
+        function showSection(section) {
+            const sections = document.querySelectorAll('.section');
+            sections.forEach((sec) => {
+                sec.classList.add('hidden');
+            });
+            document.getElementById(section).classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
