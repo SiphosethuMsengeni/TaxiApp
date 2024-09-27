@@ -1,89 +1,53 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract RideBooking {
-    address public owner; // Contract owner
-    uint256 public rideFeePercentage = 2; // Platform fee (2% of the fare)
+contract TaxiAppPayment {
+    address public owner;
+    uint256 public totalPayments;
 
-    struct Ride {
-        address payable rider;
-        address payable driver;
-        uint256 fare;
-        bool isCompleted;
-        bool isPaid;
+    // Minimum and maximum payment values in wei
+    uint256 public constant MIN_PAYMENT = 0.001 ether;
+    uint256 public constant MAX_PAYMENT = 10 ether;
+
+    event PaymentReceived(address indexed from, uint256 amount);
+    event Withdrawn(address indexed to, uint256 amount);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can call this function.");
+        _;
     }
-
-    mapping(uint256 => Ride) public rides;
-    uint256 public rideCount;
-
-    event RideBooked(uint256 rideId, address rider, address driver, uint256 fare);
-    event RideCompleted(uint256 rideId);
-    event PaymentReleased(uint256 rideId, address driver, uint256 amount);
 
     constructor() {
-        owner = msg.sender; // Set the owner of the contract
+        owner = msg.sender;
     }
 
-    modifier onlyDriver(uint256 _rideId) {
-        require(msg.sender == rides[_rideId].driver, "Not authorized driver");
-        _;
+    // Pay for taxi service (payable function to receive Ether)
+    function payForTaxi() external payable {
+        // Ensure the payment is between the allowed range
+        require(msg.value > 0, "Payment must be greater than 0.");
+        require(msg.value >= MIN_PAYMENT, "Payment must be at least 0.001 ether.");
+        require(msg.value <= MAX_PAYMENT, "Payment cannot exceed 10 ether.");
+
+        // Increment total payments
+        totalPayments += msg.value;
+
+        emit PaymentReceived(msg.sender, msg.value);
     }
 
-    modifier onlyRider(uint256 _rideId) {
-        require(msg.sender == rides[_rideId].rider, "Not authorized rider");
-        _;
+    // Withdraw the collected payments to the owner's address
+    function withdrawFunds() external onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No funds available to withdraw.");
+
+        // Transfer balance to the owner's wallet
+        (bool success, ) = payable(owner).call{value: balance}("");
+        require(success, "Transfer failed.");
+
+        emit Withdrawn(owner, balance);
     }
 
-    // Function to book a ride
-    function bookRide(address payable _driver) external payable {
-        require(msg.value > 0, "Fare must be greater than 0");
-        require(_driver != address(0), "Invalid driver address");
-
-        rideCount++;
-        rides[rideCount] = Ride({
-            rider: payable(msg.sender),
-            driver: _driver,
-            fare: msg.value,
-            isCompleted: false,
-            isPaid: false
-        });
-
-        emit RideBooked(rideCount, msg.sender, _driver, msg.value);
-    }
-
-    // Function to complete a ride (called by the driver)
-    function completeRide(uint256 _rideId) external onlyDriver(_rideId) {
-        Ride storage ride = rides[_rideId];
-        require(!ride.isCompleted, "Ride already completed");
-
-        ride.isCompleted = true;
-        emit RideCompleted(_rideId);
-    }
-
-    // Function to release payment after ride completion (called by rider)
-    function releasePayment(uint256 _rideId) external onlyRider(_rideId) {
-        Ride storage ride = rides[_rideId];
-        require(ride.isCompleted, "Ride not completed");
-        require(!ride.isPaid, "Ride already paid");
-
-        uint256 platformFee = (ride.fare * rideFeePercentage) / 100;
-        uint256 driverAmount = ride.fare - platformFee;
-
-        ride.driver.transfer(driverAmount); // Transfer amount to the driver
-        payable(owner).transfer(platformFee); // Transfer fee to contract owner
-        ride.isPaid = true;
-
-        emit PaymentReleased(_rideId, ride.driver, driverAmount);
-    }
-
-    // Function to adjust the platform fee percentage (only the contract owner can call)
-    function setRideFeePercentage(uint256 _newFee) external {
-        require(msg.sender == owner, "Only owner can change fee percentage");
-        rideFeePercentage = _newFee;
-    }
-
-    // Function to retrieve the current ride details
-    function getRideDetails(uint256 _rideId) external view returns (Ride memory) {
-        return rides[_rideId];
+    // Check contract balance
+    function getBalance() external view returns (uint256) {
+        return address(this).balance;
     }
 }
